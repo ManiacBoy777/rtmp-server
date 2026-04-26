@@ -1,36 +1,118 @@
-# How to Record Livestream from OSEE GoStream directly to PC without OBS
+# RTMP Server for OSEE GoStream Recording
 
-## Installation 
+This project provides a simple, self-hosted RTMP server solution using Docker and MediaMTX (formerly `rtsp-simple-server`) to record livestreams directly from an OSEE GoStream device to your PC, without requiring additional software like OBS.
 
-Install Prerequisites:
+## ✨ Features
+
+-   **Direct Recording**: Capture RTMP streams from your OSEE GoStream directly to local storage.
+-   **Dockerized**: Easy setup and deployment using Docker Compose.
+-   **Customizable Paths**: Define custom recording paths and formats.
+-   **Lightweight**: Efficient resource usage with MediaMTX.
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+Before you begin, ensure you have the following installed on your system:
+
+-   **Git**: For cloning the repository.
+-   **Docker Desktop**: Includes Docker Engine and Docker Compose for running the server.
+
+For Windows users, you can install both using `winget`:
+
 ```powershell
-winget Git.Git Docker.DockerDesktop -h
+winget install --id Git.Git -e && winget install --id Docker.DockerDesktop -e
 ```
 
-```powershell
-git clone github.com/maniacboy777/rtmp-server && cd rtmp-server && docker compose up -d
+### Installation
+
+To set up the RTMP server, follow these steps:
+
+1.  **Clone the Repository**:
+
+    ```bash
+git clone https://github.com/ManiacBoy777/rtmp-server.git
+cd rtmp-server
+    ```
+
+2.  **Start the Server**:
+
+    Launch the MediaMTX server using Docker Compose. This will run the server in the background.
+
+    ```bash
+docker compose up -d
+    ```
+
+    **One-liner Installation (Recommended)**:
+
+    For a quick setup, you can use the following command to clone the repository and start the server in one go:
+
+    ```bash
+git clone https://github.com/ManiacBoy777/rtmp-server.git && cd rtmp-server && docker compose up -d
+    ```
+
+### Configuration
+
+The `rtmp-server` project uses two main configuration files:
+
+-   `compose.yml`: Defines the Docker services, port mappings, and volume mounts.
+-   `mediamtx.yml`: Configures the MediaMTX server, including recording settings.
+
+**Recording Path**: By default, recorded videos will be saved to a `Livestream` subfolder within your user's `Videos` directory (e.g., `C:\Users\YourUser\Videos\Livestream` on Windows, or `/home/youruser/Videos/Livestream` on Linux/macOS). This is mapped to `/recordings/live` inside the Docker container.
+
+**Recording Format**: The `mediamtx.yml` is configured to record all incoming streams (`all` paths) to MP4 files with a timestamped filename (e.g., `livestream-DD-MM-YYYY_HH-MM-SS.fmp4`).
+
+```yaml
+# mediamtx.yml excerpt
+paths:
+  all:
+    record: yes
+    recordPath: "/recordings/%path/livestream-%d-%m-%Y_%H-%M-%s"
+    recordFormat: fmp4
 ```
 
+You can modify `mediamtx.yml` to change the recording path, format, or other MediaMTX settings as needed.
 
-Open `GoStream Control` software on PC
+## 📺 Usage with OSEE GoStream
 
-Click `Stream > Create Stream XML File`
+Follow these steps to configure your OSEE GoStream to stream to your newly set up RTMP server:
 
-For `Platform Name`you can put whatever you like such as `PC Recording`
+1.  **Open GoStream Control Software**: Launch the `GoStream Control` application on your PC.
 
-For `URL` put `rtmp://your-computers-ip-address:1935/live`
-Note: If you don't know your IP address you can easily find it by typing `ipconfig` into cmd or terminal
+2.  **Create Stream XML File**:
+    *   Navigate to `Stream > Create Stream XML File`.
+    *   For `Platform Name`, enter a descriptive name like `PC Recording`.
+    *   For `URL`, enter `rtmp://your-computers-ip-address:1935/live`.
+        *   **Note**: To find your computer's IP address, open your command prompt or terminal and type `ipconfig` (Windows) or `ifconfig`/`ip a` (Linux/macOS).
+    *   Click `EXPORT FILE`.
 
-Click `EXPORT FILE`
+3.  **Open Streaming Dialogue**:
+    *   Go to `Stream > Open Streaming Dialogue`.
+    *   Select one of the three available stream slots.
+    *   Under `Platform`, choose the platform you just created (e.g., `PC Recording`).
+    *   In the `Stream Key` field, enter the desired subfolder name for your recordings (e.g., `my_event`). This will create a folder like `Videos/Livestream/my_event`.
+    *   Ensure `Enable Live` is checked.
 
-Click `Stream > Open Streaming Dialogue`
+Now, when you start streaming from your OSEE GoStream, it will automatically record the live feed as an MP4 file in the specified directory on your PC.
 
-Select one of the 3 available streams
+## 🛑 Stopping the Server
 
-Under `Platform` you should see the Platform you just created. Select it.
+To stop the RTMP server and its associated Docker containers, navigate to the `rtmp-server` directory and run:
 
-`Stream Key` should be whatever you want the subfolder to be called under Videos such `livestream`
+```bash
+docker compose down
+```
 
-Ensure `Enable Live` is checked
+## 🤝 Contributing
 
-Now when you go live, it should automatically stream straight to an MP4 file in `Videos/livestream` or whatever you specified as a stream key.
+Contributions are welcome! If you have suggestions for improvements or new features, please open an issue or submit a pull request.
+
+## 📄 License
+
+This project is open-sourced under the MIT License. See the `LICENSE` file for more details.
+
+## 👤 Author
+
+-   **ManiacBoy777**
+
+---

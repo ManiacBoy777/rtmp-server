@@ -1,0 +1,15 @@
+services:
+  mediamtx:
+    image: bluenviron/mediamtx
+    container_name: mediamtx
+    ports:
+      - "1935:1935" #RTMP
+      - "8888:8888" #HLS
+      - "9997:9997" #API
+      - "8554:8554" #RTSP
+      - "8889:8889" #WEBRTC
+      - "8890:8890" #SRT
+    volumes:
+      - '${USERPROFILE}\Videos\Livestream:/recordings/live'
+      - ./mediamtx.yml:/mediamtx.yml
+    restart: unless-stopped

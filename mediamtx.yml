@@ -1,0 +1,11 @@
+hls: yes
+hlsAddress: :8888
+
+api:
+apiAddress: :9997
+
+paths:
+  all:
+    record: yes
+    recordPath: "/recordings/%path/livestream-%d-%m-%Y_%H-%M-%s"
+    recordFormat: fmp4

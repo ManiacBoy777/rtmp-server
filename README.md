@@ -21,7 +21,7 @@ Before you begin, ensure you have the following installed on your system:
 For Windows users, you can install both using `winget`:
 
 ```powershell
-winget install --id Git.Git -e && winget install --id Docker.DockerDesktop -e
+winget install --id Git.Git -h && winget install --id Docker.DockerDesktop -h
 ```
 
 ### Installation
@@ -30,48 +30,17 @@ To set up the RTMP server, follow these steps:
 
 1.  **Clone the Repository**:
 
-    ```bash
+```powershell
 git clone https://github.com/ManiacBoy777/rtmp-server.git
 cd rtmp-server
-    ```
-
-2.  **Start the Server**:
-
-    Launch the MediaMTX server using Docker Compose. This will run the server in the background.
-
-    ```bash
 docker compose up -d
-    ```
-
-    **One-liner Installation (Recommended)**:
-
-    For a quick setup, you can use the following command to clone the repository and start the server in one go:
-
-    ```bash
-git clone https://github.com/ManiacBoy777/rtmp-server.git && cd rtmp-server && docker compose up -d
-    ```
+```
 
 ### Configuration
 
-The `rtmp-server` project uses two main configuration files:
+-   `mediamtx.yml`: Configures the MediaMTX server, including recording settings. You can modify `mediamtx.yml` to change the recording path, format, or other MediaMTX settings as needed. See mediamtx documentation for more information.
 
--   `compose.yml`: Defines the Docker services, port mappings, and volume mounts.
--   `mediamtx.yml`: Configures the MediaMTX server, including recording settings.
-
-**Recording Path**: By default, recorded videos will be saved to a `Livestream` subfolder within your user's `Videos` directory (e.g., `C:\Users\YourUser\Videos\Livestream` on Windows, or `/home/youruser/Videos/Livestream` on Linux/macOS). This is mapped to `/recordings/live` inside the Docker container.
-
-**Recording Format**: The `mediamtx.yml` is configured to record all incoming streams (`all` paths) to MP4 files with a timestamped filename (e.g., `livestream-DD-MM-YYYY_HH-MM-SS.fmp4`).
-
-```yaml
-# mediamtx.yml excerpt
-paths:
-  all:
-    record: yes
-    recordPath: "/recordings/%path/livestream-%d-%m-%Y_%H-%M-%s"
-    recordFormat: fmp4
-```
-
-You can modify `mediamtx.yml` to change the recording path, format, or other MediaMTX settings as needed.
+**Recording Path**: By default, recorded within your user's `Videos` directory depending on what you choose as a stream key.(e.g., `C:\Users\YourUser\Videos\Livestream`)
 
 ## 📺 Usage with OSEE GoStream
 
@@ -83,14 +52,14 @@ Follow these steps to configure your OSEE GoStream to stream to your newly set u
     *   Navigate to `Stream > Create Stream XML File`.
     *   For `Platform Name`, enter a descriptive name like `PC Recording`.
     *   For `URL`, enter `rtmp://your-computers-ip-address:1935/live`.
-        *   **Note**: To find your computer's IP address, open your command prompt or terminal and type `ipconfig` (Windows) or `ifconfig`/`ip a` (Linux/macOS).
+        *   **Note**: To find your computer's IP address, open your command prompt or terminal and type `ipconfig`
     *   Click `EXPORT FILE`.
 
 3.  **Open Streaming Dialogue**:
     *   Go to `Stream > Open Streaming Dialogue`.
     *   Select one of the three available stream slots.
     *   Under `Platform`, choose the platform you just created (e.g., `PC Recording`).
-    *   In the `Stream Key` field, enter the desired subfolder name for your recordings (e.g., `my_event`). This will create a folder like `Videos/Livestream/my_event`.
+    *   In the `Stream Key` field, enter the desired subfolder name for your recordings (e.g., `my_event`). This will create a folder like `Videos/my_event`.
     *   Ensure `Enable Live` is checked.
 
 Now, when you start streaming from your OSEE GoStream, it will automatically record the live feed as an MP4 file in the specified directory on your PC.
@@ -99,7 +68,7 @@ Now, when you start streaming from your OSEE GoStream, it will automatically rec
 
 To stop the RTMP server and its associated Docker containers, navigate to the `rtmp-server` directory and run:
 
-```bash
+```powershell
 docker compose down
 ```
 

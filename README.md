@@ -1,4 +1,4 @@
-# RTMP Server for OSEE GoStream Recording
+# How to record OSEE GoStream to PC without OBS
 
 This project provides a simple, self-hosted RTMP server solution using Docker and MediaMTX to record livestreams directly from an OSEE GoStream device to your PC, without requiring additional software like OBS.
 

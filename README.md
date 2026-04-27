@@ -28,21 +28,13 @@ winget install --id Git.Git -h && winget install --id Docker.DockerDesktop -h
 
 To set up the RTMP server, follow these steps:
 
-1.  **Clone the Repository**:
+**Clone the Repository**:
 
 ```powershell
 git clone https://github.com/ManiacBoy777/rtmp-server.git
 cd rtmp-server
 docker compose up -d
 ```
-
-### Configuration
-
--   `mediamtx.yml`: Configures the MediaMTX server, including recording settings. You can modify `mediamtx.yml` to change the recording path, format, or other MediaMTX settings as needed. See mediamtx documentation for more information.
-
-**Recording Path**: By default, recorded within your user's `Videos` directory depending on what you choose as a stream key.(e.g., `C:\Users\YourUser\Videos\Livestream`)
-
-## 📺 Usage with OSEE GoStream
 
 Follow these steps to configure your OSEE GoStream to stream to your newly set up RTMP server:
 
@@ -64,9 +56,17 @@ Follow these steps to configure your OSEE GoStream to stream to your newly set u
 
 Now, when you start streaming from your OSEE GoStream, it will automatically record the live feed as an MP4 file in the specified directory on your PC.
 
+### Configuration
+
+-   `mediamtx.yml`: Configures the MediaMTX server, including recording settings. You can modify `mediamtx.yml` to change the recording path, format, or other MediaMTX settings as needed. See mediamtx documentation for more information.
+
+**Recording Path**: By default, recorded within your user's `Videos` directory depending on what you choose as a stream key.(e.g., `C:\Users\YourUser\Videos\Livestream`)
+
+## 📺 Usage with OSEE GoStream
+
 ## 🛑 Stopping the Server
 
-To stop the RTMP server and its associated Docker containers, navigate to the `rtmp-server` directory and run:
+To stop the RTMP server navigate to the `rtmp-server` directory and run:
 
 ```powershell
 docker compose down
@@ -75,10 +75,6 @@ docker compose down
 ## 🤝 Contributing
 
 Contributions are welcome! If you have suggestions for improvements or new features, please open an issue or submit a pull request.
-
-## 📄 License
-
-This project is open-sourced under the MIT License. See the `LICENSE` file for more details.
 
 ## 👤 Author
 

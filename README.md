@@ -1,6 +1,6 @@
 # RTMP Server for OSEE GoStream Recording
 
-This project provides a simple, self-hosted RTMP server solution using Docker and MediaMTX (formerly `rtsp-simple-server`) to record livestreams directly from an OSEE GoStream device to your PC, without requiring additional software like OBS.
+This project provides a simple, self-hosted RTMP server solution using Docker and MediaMTX to record livestreams directly from an OSEE GoStream device to your PC, without requiring additional software like OBS.
 
 ## ✨ Features
 
@@ -61,8 +61,6 @@ Now, when you start streaming from your OSEE GoStream, it will automatically rec
 -   `mediamtx.yml`: Configures the MediaMTX server, including recording settings. You can modify `mediamtx.yml` to change the recording path, format, or other MediaMTX settings as needed. See mediamtx documentation for more information.
 
 **Recording Path**: By default, recorded within your user's `Videos` directory depending on what you choose as a stream key.(e.g., `C:\Users\YourUser\Videos\Livestream`)
-
-## 📺 Usage with OSEE GoStream
 
 ## 🛑 Stopping the Server
 

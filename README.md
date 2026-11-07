@@ -40,7 +40,7 @@
 | **Ingest** | RTMP on port **1935**, path `live` + a stream key you choose per event |
 | **Recording** | Automatic for every published path (`record: yes`), fragmented MP4 (`fmp4`) |
 | **Recording destination** | `<your Windows user>\Videos\Livestream\<stream key>\` on the host PC |
-| **Also published** | RTSP `:8554`, HLS `:8888`, WebRTC `:8889`, SRT `:8890`, MediaMTX API `:9997` |
+| **Also published** | RTSP `:8554` (TCP only), HLS `:8888`, WebRTC `:8889` + media `:8189/udp`, SRT `:8890/udp`, MediaMTX API `:9997` |
 | **Deploy** | `docker compose up -d` — one service, `restart: unless-stopped` |
 | **Files you edit** | `mediamtx.yml` (server/recording settings) and the recordings volume path in `compose.yml` |
 
@@ -69,7 +69,7 @@
 │   recordPath /recordings/%path/livestream-<date>_<time>  │
 │                                                          │
 │   republish:  RTSP :8554 · HLS :8888 · WebRTC :8889      │
-│               SRT  :8890 · API :9997                     │
+│               SRT  :8890/udp · API :9997                     │
 └───────────────────────┬──────────────────────────────────┘
                         │  volume mount
                         ▼
@@ -173,7 +173,7 @@ Anything published to MediaMTX is republished on every protocol the container ex
 | **WebRTC** (browser page served by MediaMTX) | `http://<pc-ip>:8889/live/<stream key>` |
 | **Finished recordings** | Files under `Videos\Livestream\<stream key>\` — fragmented MP4, playable directly |
 
-HLS is explicitly enabled in `mediamtx.yml` (`hls: yes` on `:8888`); the RTSP, WebRTC, and SRT listeners are MediaMTX's standard listeners, published by `compose.yml`.
+HLS is explicitly enabled in `mediamtx.yml` (`hls: yes` on `:8888`), as are the RTMP, RTSP, WebRTC, and SRT listeners; RTSP is restricted to TCP transport there (`rtspTransports: [tcp]`), and `compose.yml` publishes every listener port.
 
 ---
 
@@ -183,7 +183,7 @@ HLS is explicitly enabled in `mediamtx.yml` (`hls: yes` on `:8888`); the RTSP, W
 
 | Setting | Value | Meaning |
 | --- | --- | --- |
-| `services.mediamtx.image` | `bluenviron/mediamtx` | The official MediaMTX image. **No tag is pinned** — `docker compose pull` moves to whatever is current; see [Maintenance](#maintenance). |
+| `services.mediamtx.image` | `bluenviron/mediamtx:1.21.3` | The official MediaMTX image, **pinned to 1.21.3** — `docker compose pull` re-fetches this exact release instead of silently upgrading; bump the tag deliberately (see [Maintenance](#maintenance)). |
 | `container_name` | `mediamtx` | Fixed name, so `docker logs mediamtx` always works |
 | `restart` | `unless-stopped` | The server comes back after reboots and crashes until you explicitly stop it |
 | `volumes` (recordings) | `${USERPROFILE}\Videos\Livestream:/recordings/live` | Host folder that receives recordings. Windows-specific: it relies on the `USERPROFILE` environment variable. Change the left side to record elsewhere. |
@@ -196,10 +196,11 @@ All ports are published on **all host interfaces** (no host-IP binding in `compo
 | Port | Protocol | Purpose |
 | --- | --- | --- |
 | `1935` | RTMP | **Ingest.** The GoStream publishes here (`rtmp://<pc-ip>:1935/live`) |
-| `8554` | RTSP | Stream playback / redistribution |
+| `8554` | RTSP (TCP) | Stream playback / redistribution — TCP transport only (see `rtspTransports` below); no UDP ports are needed |
 | `8888` | HLS (TCP) | Stream playback in browsers and players; enabled in `mediamtx.yml` |
-| `8889` | WebRTC | Browser-based playback page |
-| `8890` | SRT | Additional ingest/playback protocol (published without a protocol suffix, i.e. as TCP — see [Troubleshooting](#troubleshooting) if an SRT client can't connect, since MediaMTX serves SRT over UDP) |
+| `8889` | WebRTC signaling (TCP) | Browser-based playback page |
+| `8189` | WebRTC media (UDP) | The actual WebRTC audio/video; without this mapping WebRTC signaling connects but no media flows |
+| `8890` | SRT (UDP) | Additional ingest/playback protocol — published as `"8890:8890/udp"` because MediaMTX serves SRT over UDP (a plain `"8890:8890"` would map TCP and SRT could never connect) |
 | `9997` | MediaMTX API (TCP) | Server API for status/automation; listener address set in `mediamtx.yml` |
 
 ### `mediamtx.yml` — server
@@ -207,30 +208,45 @@ All ports are published on **all host interfaces** (no host-IP binding in `compo
 The file in full, annotated:
 
 ```yaml
+# RTMP ingest — the GoStream publishes to rtmp://<pc-ip>:1935/live
+rtmp: yes
+rtmpAddress: :1935
+
+# RTSP playback — TCP only on purpose: Docker Desktop on Windows
+# mangles RTSP over UDP (connected-but-black sources in OBS)
+rtsp: yes
+rtspAddress: :8554
+rtspTransports: [tcp]
+
 hls: yes                 # enable the HLS listener
 hlsAddress: :8888        # …on port 8888
 
-api:                     # API section present; no explicit value is set in the file
+api: yes                 # API explicitly on (a blank `api:` leaves it off)
 apiAddress: :9997        # API listener on port 9997
 
+# Recording defaults for every path (current MediaMTX schema)
+pathDefaults:
+  record: yes                   # record everything that is published
+  recordPath: "/recordings/%path/livestream-%d-%m-%Y_%H-%M-%s"
+  recordFormat: fmp4            # fragmented MP4
+
 paths:
-  all:                            # the rule below applies to every path
-    record: yes                   # record everything that is published
-    recordPath: "/recordings/%path/livestream-%d-%m-%Y_%H-%M-%s"
-    recordFormat: fmp4            # fragmented MP4
+  all_others:                   # catch-all for every path (replaces the old `all:`)
 ```
 
 | Key | Value in this repo | Meaning |
 | --- | --- | --- |
-| `hls` | `yes` | HLS serving is on |
-| `hlsAddress` | `:8888` | HLS listen address/port |
-| `api` | *(no value set)* | The key is present without an explicit `yes`; if you depend on the API, set `api: yes` explicitly so its state doesn't rest on a default |
-| `apiAddress` | `:9997` | API listen address/port |
-| `paths.all.record` | `yes` | Every published path is recorded — no per-path setup |
-| `paths.all.recordPath` | `/recordings/%path/livestream-%d-%m-%Y_%H-%M-%s` | Where recordings go inside the container, and how they're named (`%path` + start date/time stamp) |
-| `paths.all.recordFormat` | `fmp4` | Fragmented MP4 — resilient if a stream dies mid-record, and playable in standard tooling |
+| `rtmp` / `rtmpAddress` | `yes` / `:1935` | RTMP ingest listener — where the GoStream publishes |
+| `rtsp` / `rtspAddress` | `yes` / `:8554` | RTSP playback listener |
+| `rtspTransports` | `[tcp]` | **TCP only.** Docker Desktop on Windows mangles RTSP/UDP; TCP-only also means no extra UDP ports to publish |
+| `hls` / `hlsAddress` | `yes` / `:8888` | HLS serving is on, on port 8888 |
+| `api` / `apiAddress` | `yes` / `:9997` | API explicitly enabled, on port 9997 (previously the key was blank, which left the API off despite the published port) |
+| `pathDefaults.record` | `yes` | Every published path is recorded — no per-path setup |
+| `pathDefaults.recordPath` | `/recordings/%path/livestream-%d-%m-%Y_%H-%M-%s` | Where recordings go inside the container, and how they're named (`%path` + start date/time stamp) |
+| `pathDefaults.recordFormat` | `fmp4` | Fragmented MP4 — resilient if a stream dies mid-record, and playable in standard tooling |
+| `paths.all_others` | *(no settings)* | The current catch-all path entry; it inherits everything from `pathDefaults`. (The pre-1.x-style `paths: all:` block was replaced in the 2026-11-06 fix pass.) |
 
-Everything not listed here (RTMP/RTSP/WebRTC/SRT listener settings, timeouts, logging, authentication, and the rest of MediaMTX's configuration) runs at MediaMTX's built-in defaults. The upstream [MediaMTX documentation](https://mediamtx.org) is the reference for any key you add.
+Everything not listed here (WebRTC/SRT listener settings, timeouts, logging, authentication, and the rest of MediaMTX's configuration) runs at MediaMTX's built-in defaults. The upstream [MediaMTX documentation](https://mediamtx.org) is the reference for any key you add.
 
 ### Where recordings land — path anatomy
 
@@ -263,7 +279,7 @@ Worked example: PC user `media`, stream key `my_event` → the file is written t
 Be clear-eyed about what this configuration is and isn't:
 
 - **There is no authentication.** `mediamtx.yml` configures no credentials, so **anyone on the network who can reach port 1935 can publish** (and be recorded), and anyone who can reach the playback ports can watch any live path. That is a deliberate trade-off for a trusted LAN — a church media PC and its switcher — and it is the reason this server must stay on a trusted network.
-- **All six ports bind on all interfaces.** Docker publishes them on every host address, LAN included. Windows Firewall prompts/behavior on first run decide who else can reach them.
+- **All seven ports bind on all interfaces.** Docker publishes them on every host address, LAN included. Windows Firewall prompts/behavior on first run decide who else can reach them.
 - **The API port (9997) is published too.** MediaMTX's API can inspect and control the server; on a shared network, treat its exposure like the publish port's.
 - **Never port-forward this server to the internet** as configured. If remote ingest is ever needed, put it behind a VPN or add MediaMTX authentication (`authMethods`, per-path users) in `mediamtx.yml` first — the upstream documentation covers both.
 - **No secrets live in this repository** — there are no stream keys, passwords, or tokens in either file, and none are needed for this setup to work.
@@ -278,17 +294,19 @@ Be clear-eyed about what this configuration is and isn't:
 | Stream connects but **no file appears** | Recording writes to the mounted volume; a bad host path or missing `USERPROFILE` in the shell that started Compose breaks the mount | Check `docker logs mediamtx` for recording errors; confirm `Videos\Livestream` exists on the host and the volume line in `compose.yml` resolves to it |
 | Recording is in an unexpected folder | The stream key *is* the folder | The file is under `Videos\Livestream\<the exact stream key used>` — check for typos in the key configured on the GoStream |
 | A player chokes on the recording | The format is **fragmented** MP4 (`fmp4`), which a few older tools dislike | Play with a current VLC/ffmpeg-based tool, or remux losslessly: `ffmpeg -i in.mp4 -c copy out.mp4` |
-| `docker compose up` fails with "port is already allocated" | Something else on the PC already uses one of 1935 / 8554 / 8888 / 8889 / 8890 / 9997 | Find and stop the conflicting program, or remap that port's host side in `compose.yml` (and update the GoStream URL if you move 1935) |
+| `docker compose up` fails with "port is already allocated" | Something else on the PC already uses one of 1935 / 8554 / 8888 / 8889 / 8189 / 8890 / 9997 | Find and stop the conflicting program, or remap that port's host side in `compose.yml` (and update the GoStream URL if you move 1935) |
 | Config change has no effect | MediaMTX reads `mediamtx.yml` at container start | `docker compose restart` after every edit |
-| SRT client can't connect on 8890 | `compose.yml` publishes `8890` without a protocol suffix, so Docker maps TCP; MediaMTX serves SRT over UDP | Change the mapping to `"8890:8890/udp"` and `docker compose up -d` |
+| SRT client can't connect on 8890 | Docker is mapping TCP for 8890 — MediaMTX serves SRT over UDP only | Confirm the mapping in `compose.yml` reads `"8890:8890/udp"` (fixed 2026-11-06; older checkouts mapped TCP) and `docker compose up -d` |
 | Windows Firewall blocks the GoStream | Docker Desktop / the published ports were not allowed through the firewall on the LAN profile | Allow Docker Desktop through Windows Firewall for your network profile, keeping the network itself trusted/private |
-| API calls to `:9997` fail | The `api:` key in `mediamtx.yml` carries no explicit value | Set `api: yes` in `mediamtx.yml` and restart the container |
+| API calls to `:9997` fail | The API is off, or the container predates the fix | `mediamtx.yml` sets `api: yes` explicitly (fixed 2026-11-06; the key used to be blank, which left the API disabled). Restart the container and check `docker logs mediamtx` for the `[API] started` line |
+| RTSP source in OBS connects but shows **black** | RTSP running over UDP through Docker Desktop on Windows, which mangles the UDP flow | `mediamtx.yml` forces `rtspTransports: [tcp]` (fixed 2026-11-06). Restart the container, and in OBS set the Media Source input format to `rtsp` with hardware decoding on |
 
 ---
 
 ## Maintenance
 
-- **Updating MediaMTX:** the image is unpinned (`bluenviron/mediamtx` with no tag), so `docker compose pull && docker compose up -d` upgrades to the current release. MediaMTX occasionally renames configuration keys between releases — after an upgrade, skim `docker logs mediamtx` for config warnings and compare against the upstream release notes. If you need repeatability over novelty, pin a tag in `compose.yml` (e.g. `bluenviron/mediamtx:<version>`) and bump it deliberately.
+- **Updating MediaMTX:** the image is pinned (`bluenviron/mediamtx:1.21.3`), so `docker compose pull` never changes the version on its own. To upgrade, edit the tag in `compose.yml` deliberately, check the upstream release notes first (MediaMTX occasionally renames configuration keys between releases — the `paths: all:` → `pathDefaults` / `all_others` change in this repo is one), then `docker compose pull && docker compose up -d` **while nothing is streaming** (a restart closes the current recording segment), and skim `docker logs mediamtx` for config warnings.
+- **2026-11-06 fix pass** (the fixes discussed when this setup was first reviewed, applied to the repo): SRT published as UDP (`8890:8890/udp`); WebRTC media port added (`8189:8189/udp`); `rtspTransports: [tcp]` set in `mediamtx.yml`; `api:` set to explicit `yes`; recording settings moved to the current `pathDefaults:` schema with the `all_others` catch-all; image pinned to 1.21.3. The new `mediamtx.yml` was validated against the real MediaMTX v1.21.3 binary before pushing: the config loads with no errors, RTSP starts TCP-only on :8554, and the RTMP/HLS/WebRTC/SRT/API listeners all come up on their expected ports.
 - **Disk usage:** recordings accumulate under `Videos\Livestream\` and nothing in this repo rotates or deletes them. Archive or prune old event folders as part of your routine; fMP4 files are as large as the stream's bitrate × duration.
 - **Config changes:** edit `mediamtx.yml`, restart, and watch the logs once — a malformed YAML key will surface there immediately.
 - **Backups:** the repo *is* the backup — the entire server rebuilds from these two files plus the recordings folder, which you back up like any other media.
@@ -314,4 +332,4 @@ Be clear-eyed about what this configuration is and isn't:
 
 ---
 
-*Public configuration repository — personal project. Last verified end to end: 2026-11-06 (America/Phoenix) — repository audited in full at `main` commit `04068d5` (`compose.yml`, `mediamtx.yml`, prior README, and commit history read in full); every port, path, and setting documented above is taken from those files.*
+*Public configuration repository — personal project. Last verified end to end: 2026-11-06 (America/Phoenix) — repository audited in full (`compose.yml`, `mediamtx.yml`, prior README, and commit history read in full); the 2026-11-06 fix pass was validated by booting the pinned MediaMTX v1.21.3 binary against the new `mediamtx.yml` (clean config load; RTSP TCP-only; all listeners on their documented ports). Every port, path, and setting documented above is taken from those files or that validation run.*

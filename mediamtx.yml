@@ -1,11 +1,35 @@
+# MediaMTX configuration — rtmp-server
+# The GoStream publishes RTMP here and every path is recorded to disk.
+# Protocol reference and rationale: README.md (Configuration Reference).
+
+# RTMP ingest — the GoStream publishes to rtmp://<pc-ip>:1935/live
+rtmp: yes
+rtmpAddress: :1935
+
+# RTSP playback (e.g. an OBS Media Source) — TCP only on purpose:
+# Docker Desktop on Windows mangles RTSP over UDP, which shows up as a
+# connected-but-black source. TCP-only avoids the UDP ports entirely.
+rtsp: yes
+rtspAddress: :8554
+rtspTransports: [tcp]
+
+# HLS playback
 hls: yes
 hlsAddress: :8888
 
-api:
+# HTTP API (list live paths, server state) — must be explicitly on;
+# a blank `api:` leaves it disabled even with the port published.
+api: yes
 apiAddress: :9997
 
+# Recording defaults, applied to every path. Current MediaMTX schema:
+# defaults live in pathDefaults (the old `paths: all:` catch-all is gone;
+# `all_others` below is its modern equivalent and needs no settings of
+# its own because everything inherits from pathDefaults).
+pathDefaults:
+  record: yes
+  recordPath: "/recordings/%path/livestream-%d-%m-%Y_%H-%M-%s"
+  recordFormat: fmp4
+
 paths:
-  all:
-    record: yes
-    recordPath: "/recordings/%path/livestream-%d-%m-%Y_%H-%M-%s"
-    recordFormat: fmp4
+  all_others:
